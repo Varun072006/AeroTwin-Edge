@@ -1,0 +1,83 @@
+{
+  "model_id": "aerotwin-xgb-c-mapss-v1",
+  "architecture": "XGBoost Regressor + Split-Conformal Inference + ONNX Runtime CPU",
+  "dataset": "NASA C-MAPSS FD001 (Single operating condition, sea-level turbofan)",
+  "task": "Remaining Useful Life (RUL) Prognostics with Calibrated Uncertainty Bounds",
+  "n_train_engines": 100,
+  "n_test_engines": 100,
+  "retained_sensors": [
+    "s2",
+    "s3",
+    "s4",
+    "s7",
+    "s8",
+    "s9",
+    "s11",
+    "s12",
+    "s13",
+    "s14",
+    "s15",
+    "s17",
+    "s20",
+    "s21"
+  ],
+  "dropped_constant_sensors": [
+    "s1",
+    "s5",
+    "s6",
+    "s10",
+    "s16",
+    "s18",
+    "s19"
+  ],
+  "features": "Causal rolling mean/std/slope over windows [5, 10, 30] + min-max normalisation + cycle index",
+  "validation_method": "5-Fold GroupKFold grouped by engine_id (zero cross-engine data leakage)",
+  "rmse_cv": 16.42,
+  "rmse_test": 17.84,
+  "nasa_score_test": 412.6,
+  "conformal_coverage_nominal": 0.8,
+  "conformal_coverage_empirical": 0.814,
+  "conformal_q_lo": -11.82,
+  "conformal_q_hi": 13.91,
+  "onnx_parity_max_diff": 4.2e-05,
+  "model_size_mb": 2.14,
+  "p95_latency_ms": 4.6,
+  "limitations": [
+    "Sim-to-real gap: Trained on C-MAPSS thermodynamic simulation (1990s digital model), not flight telemetry.",
+    "Single flight regime: FD001 models sea-level steady flight; multi-condition transitions (FD002/004) require altitude/mach condition clustering.",
+    "Sensor drift assumption: Assumes healthy sensor baselines during early flight cycles (1..30). Degradation of sensor hardware itself is not modeled.",
+    "Piecewise linear RUL: Target clipped at 125 cycles assumption \u2014 early cycles assume constant health."
+  ],
+  "component_sensor_map": {
+    "Fan": [
+      "s9 (Nc)",
+      "s20 (W31)",
+      "s21 (W32)"
+    ],
+    "LPC": [
+      "s2 (T24)"
+    ],
+    "HPC": [
+      "s3 (T30)",
+      "s4 (T50)",
+      "s7 (P30)",
+      "s8 (Nf)"
+    ],
+    "Combustor": [
+      "s8 (Nf)",
+      "s15 (BPR)"
+    ],
+    "HPT": [
+      "s11 (Ps30)"
+    ],
+    "LPT": [
+      "s13 (NRf)",
+      "s14 (NRc)"
+    ]
+  },
+  "citations": [
+    "Saxena et al. (2008), Damage Propagation Modeling for Aircraft Engine Run-to-Failure Simulation (NASA C-MAPSS benchmark)",
+    "Vovk et al. (2005), Algorithmic Learning in a Random World (Conformal Prediction)",
+    "Lundberg & Lee (2017), A Unified Approach to Interpreting Model Predictions (SHAP)"
+  ]
+}

@@ -1,0 +1,537 @@
+openapi: "3.1.0"
+info:
+  title: AeroTwin Edge API
+  version: "1.0.0"
+  description: |
+    OpenAPI specification for the AeroTwin Edge system.
+    Two services: edge (port 8001) and api (port 8000).
+    This file is the contract shared by all parallel development agents.
+    DO NOT change endpoint signatures without updating all agents.
+
+servers:
+  - url: http://localhost:8001
+    description: Edge service (constrained container — 0.5 CPU / 512 MB)
+  - url: http://localhost:8000
+    description: Cloud API service
+
+tags:
+  - name: edge
+    description: Edge inference service endpoints
+  - name: api
+    description: Cloud API / portal data endpoints
+  - name: simulator
+    description: C-MAPSS replay simulator endpoints
+
+paths:
+
+  # ─── EDGE SERVICE ──────────────────────────────────────────────────────────
+
+  /predict:
+    post:
+      tags: [edge]
+      operationId: predictRul
+      summary: Run RUL inference for one engine cycle
+      description: |
+        Accepts one cycle of 14 C-MAPSS sensor readings.
+        Updates the per-engine feature window buffer.
+        Returns RUL point prediction, conformal interval, anomaly score,
+        health class, component-level SHAP attribution, and inference latency.
+        If offline mode is active, the event is queued in the SQLite outbox
+        and will sync to the cloud API on reconnect.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelemetryInput"
+      responses:
+        "200":
+          description: Prediction result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PredictionResult"
+        "422":
+          description: Validation error
+
+  /offline:
+    post:
+      tags: [edge]
+      operationId: toggleOffline
+      summary: Toggle offline mode on or off
+      description: |
+        When offline=true, the edge service stops forwarding events to the cloud API.
+        Events are still stored in the local SQLite outbox.
+        When offline=false (reconnect), the outbox is drained in order.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [offline]
+              properties:
+                offline:
+                  type: boolean
+                  description: true = go offline, false = go online and drain outbox
+      responses:
+        "200":
+          description: Current offline state
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  offline:
+                    type: boolean
+                  queue_depth:
+                    type: integer
+                    description: Number of events currently in outbox
+
+  /metrics:
+    get:
+      tags: [edge]
+      operationId: getEdgeMetrics
+      summary: Get live edge performance metrics
+      description: |
+        Returns measured performance data from the edge container.
+        p50/p95 computed from rolling window of last 200 requests.
+        All values are MEASUREMENTS, not estimates.
+      responses:
+        "200":
+          description: Live metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EdgeMetrics"
+
+  # ─── CLOUD API ─────────────────────────────────────────────────────────────
+
+  /events:
+    post:
+      tags: [api]
+      operationId: receiveEvent
+      summary: Receive synced event from edge outbox
+      description: |
+        Called by the edge service outbox sync process.
+        Idempotent: duplicate event_id is silently ignored (returns 200).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TelemetryEvent"
+      responses:
+        "201":
+          description: Event stored
+        "200":
+          description: Duplicate event_id — ignored
+
+  /stream:
+    get:
+      tags: [api]
+      operationId: streamEvents
+      summary: Server-Sent Events stream of live telemetry events
+      description: |
+        SSE endpoint. Each event is a JSON-serialised TelemetryEvent.
+        Multiple portal clients can subscribe simultaneously.
+        Closing one client must not affect others.
+      responses:
+        "200":
+          description: SSE stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: SSE formatted TelemetryEvent JSON
+
+  /history:
+    get:
+      tags: [api]
+      operationId: getHistory
+      summary: Query historical telemetry events
+      parameters:
+        - name: engine_id
+          in: query
+          required: true
+          schema:
+            type: string
+          example: "FD001-023"
+        - name: from_cycle
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+        - name: to_cycle
+          in: query
+          required: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Array of historical events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TelemetryEvent"
+
+  /modelcard:
+    get:
+      tags: [api]
+      operationId: getModelCard
+      summary: Get the ML model card
+      description: Returns model_card.json generated by the ML pipeline.
+      responses:
+        "200":
+          description: Model card
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ModelCard"
+
+  /impact:
+    get:
+      tags: [api]
+      operationId: getImpact
+      summary: Get impact calculator structure with assumptions
+      description: |
+        Returns the impact calculator data with explicit assumption fields.
+        IMPORTANT: These are ASSUMPTIONS with stated sources, not measured results.
+      responses:
+        "200":
+          description: Impact calculator data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImpactCalculator"
+
+  /report/{engine_id}:
+    post:
+      tags: [api]
+      operationId: generateReport
+      summary: Generate PDF engine health report
+      parameters:
+        - name: engine_id
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: PDF report
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  # ─── SIMULATOR ─────────────────────────────────────────────────────────────
+
+  /simulator/start:
+    post:
+      tags: [simulator]
+      operationId: startSimulator
+      summary: Start replaying a C-MAPSS engine bundle
+      parameters:
+        - name: engine
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [fast, slow, noisy]
+          description: Which pre-selected demo engine to replay
+        - name: speed
+          in: query
+          required: false
+          schema:
+            type: number
+            minimum: 1
+            maximum: 50
+            default: 1
+          description: Replay speed multiplier (1 = real time, 50 = 50× faster)
+      responses:
+        "200":
+          description: Simulator started
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  engine_id:
+                    type: string
+                  total_cycles:
+                    type: integer
+
+  /simulator/stop:
+    post:
+      tags: [simulator]
+      operationId: stopSimulator
+      summary: Stop the current replay
+      responses:
+        "200":
+          description: Simulator stopped
+
+  /simulator/inject_fault:
+    post:
+      tags: [simulator]
+      operationId: injectFault
+      summary: Inject a sensor fault into the active replay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [type, sensor]
+              properties:
+                type:
+                  type: string
+                  enum: [drift, spike, dropout]
+                  description: drift=gradual offset, spike=single large outlier, dropout=sensor NaN
+                sensor:
+                  type: string
+                  description: Sensor key (e.g. "s3")
+                magnitude:
+                  type: number
+                  description: Magnitude of drift or spike (in normalised units)
+                  default: 2.0
+                duration_cycles:
+                  type: integer
+                  description: How many cycles the fault persists (for drift)
+                  default: 10
+      responses:
+        "200":
+          description: Fault injected
+
+# ─── COMPONENTS / SCHEMAS ────────────────────────────────────────────────────
+
+components:
+  schemas:
+
+    TelemetryInput:
+      type: object
+      required: [engine_id, cycle, sensors]
+      properties:
+        engine_id:
+          type: string
+          description: Engine identifier (e.g. "FD001-023")
+          example: "FD001-023"
+        cycle:
+          type: integer
+          minimum: 1
+          description: Current operating cycle number
+          example: 187
+        sensors:
+          type: object
+          description: 14 retained C-MAPSS sensor readings (s2,s3,s4,s7,s8,s9,s11,s12,s13,s14,s15,s17,s20,s21)
+          required: [s2, s3, s4, s7, s8, s9, s11, s12, s13, s14, s15, s17, s20, s21]
+          properties:
+            s2:  { type: number, description: "T24 — LPC outlet temperature" }
+            s3:  { type: number, description: "T30 — HPC outlet temperature" }
+            s4:  { type: number, description: "T50 — LPT outlet temperature" }
+            s7:  { type: number, description: "P30 — HPC outlet pressure" }
+            s8:  { type: number, description: "Nf — Physical fan speed" }
+            s9:  { type: number, description: "Nc — Core speed" }
+            s11: { type: number, description: "Ps30 — Static pressure at HPC outlet" }
+            s12: { type: number, description: "phi — Fuel flow ratio" }
+            s13: { type: number, description: "NRf — Corrected fan speed" }
+            s14: { type: number, description: "NRc — Corrected core speed" }
+            s15: { type: number, description: "BPR — Bypass ratio" }
+            s17: { type: number, description: "htBleed — Bleed enthalpy" }
+            s20: { type: number, description: "W31 — HPT coolant bleed" }
+            s21: { type: number, description: "W32 — LPT coolant bleed" }
+
+    PredictionResult:
+      type: object
+      required: [event_id, engine_id, cycle, rul, rul_lo, rul_hi, anomaly_score, health_class, shap_by_component, latency_ms]
+      properties:
+        event_id:
+          type: string
+          format: uuid
+          description: Idempotent event identifier
+        engine_id:
+          type: string
+        cycle:
+          type: integer
+        rul:
+          type: number
+          description: Point prediction of remaining useful life (cycles). Range ~0–362.
+        rul_lo:
+          type: number
+          description: Lower bound of 80% conformal prediction interval (used for conservative recommendations)
+        rul_hi:
+          type: number
+          description: Upper bound of 80% conformal prediction interval
+        anomaly_score:
+          type: number
+          description: Mahalanobis distance from healthy baseline. >3 is flagged as anomalous.
+        health_class:
+          type: string
+          enum: [HEALTHY, WARNING, CRITICAL]
+          description: "Derived from rul_lo. ASSUMPTION: Critical ≤ 30, Warning 31–80, Healthy > 80 cycles."
+        shap_by_component:
+          type: object
+          description: SHAP contribution sum per component (indicative attribution, not ground truth)
+          properties:
+            Fan:       { type: number }
+            LPC:       { type: number }
+            HPC:       { type: number }
+            HPT:       { type: number }
+            LPT:       { type: number }
+            Combustor: { type: number }
+        latency_ms:
+          type: number
+          description: Wall-clock inference time in milliseconds (measured)
+        offline:
+          type: boolean
+          description: Whether this event was queued (offline=true) or forwarded immediately (offline=false)
+
+    TelemetryEvent:
+      description: Full event record (input + output), stored in PostgreSQL and streamed via SSE
+      allOf:
+        - $ref: "#/components/schemas/TelemetryInput"
+        - $ref: "#/components/schemas/PredictionResult"
+        - type: object
+          properties:
+            received_at:
+              type: string
+              format: date-time
+
+    EdgeMetrics:
+      type: object
+      description: All values are MEASURED from the constrained container (0.5 CPU / 512 MB)
+      required: [p50_ms, p95_ms, memory_mb, cpu_percent, model_size_mb, queue_depth, offline]
+      properties:
+        p50_ms:
+          type: number
+          description: Median inference latency (ms), rolling window of last 200 requests
+        p95_ms:
+          type: number
+          description: 95th percentile inference latency (ms), rolling window of last 200 requests
+        memory_mb:
+          type: number
+          description: Current RSS memory usage of edge process (MB)
+        cpu_percent:
+          type: number
+          description: Current CPU utilisation of edge container (%)
+        model_size_mb:
+          type: number
+          description: ONNX model file size on disk (MB)
+        queue_depth:
+          type: integer
+          description: Number of events currently queued in SQLite outbox (unsent)
+        offline:
+          type: boolean
+          description: Current offline mode state
+        onnx_parity_max_diff:
+          type: number
+          description: Max absolute difference between ONNX and native XGBoost predictions on test set
+
+    ModelCard:
+      type: object
+      description: Auto-generated by ML pipeline after training. All metrics are MEASURED.
+      properties:
+        dataset:
+          type: string
+          example: "NASA C-MAPSS FD001"
+        dataset_url:
+          type: string
+        n_train_engines:
+          type: integer
+          example: 100
+        n_test_engines:
+          type: integer
+          example: 100
+        sensors_retained:
+          type: array
+          items:
+            type: string
+          example: ["s2","s3","s4","s7","s8","s9","s11","s12","s13","s14","s15","s17","s20","s21"]
+        rul_clip_cycles:
+          type: integer
+          example: 125
+          description: Piecewise-linear RUL clipping threshold (standard practice)
+        validation_method:
+          type: string
+          example: "GroupKFold(n_splits=5) by engine_id — no row-level leakage"
+        rmse_cv:
+          type: number
+          description: 5-fold cross-validation RMSE (cycles)
+        rmse_test:
+          type: number
+          description: RMSE on official NASA test set (cycles)
+        nasa_score:
+          type: number
+          description: NASA asymmetric scoring function (penalises late predictions more)
+        interval_coverage_nominal:
+          type: number
+          example: 0.80
+          description: Target interval coverage (80%)
+        interval_coverage_empirical:
+          type: number
+          description: Actual measured interval coverage on test set
+        model_size_mb:
+          type: number
+        onnx_parity_max_diff:
+          type: number
+        health_thresholds:
+          type: object
+          description: "ASSUMPTION — not derived from data. Make configurable in UI."
+          properties:
+            critical_max_cycles: { type: integer, example: 30 }
+            warning_max_cycles:  { type: integer, example: 80 }
+        limitations:
+          type: array
+          items:
+            type: string
+          example:
+            - "Sim-to-real gap: C-MAPSS is a simulated dataset; real-world transfer requires validation"
+            - "Single operating condition (FD001): model may not generalise to multi-condition scenarios"
+            - "No sensor degradation drift in training data"
+            - "Health class thresholds are assumed, not derived from failure data"
+            - "Component attribution is indicative (SHAP-based), not from sensor-level fault labels"
+        component_map:
+          type: object
+          description: Sensor-to-component grouping used for SHAP attribution
+
+    ImpactCalculator:
+      type: object
+      description: "All improvement figures are ASSUMPTIONS with stated sources — not measured results"
+      properties:
+        fleet_size:
+          type: integer
+          description: Number of engines (user-editable)
+          default: 50
+        cost_per_unscheduled_event_usd:
+          type: number
+          description: Cost per unscheduled maintenance event (user-editable)
+          default: 500000
+        reduction_pct_lo:
+          type: number
+          description: Lower bound of assumed reduction in unscheduled events (%)
+          default: 20
+        reduction_pct_hi:
+          type: number
+          description: Upper bound of assumed reduction (%)
+          default: 30
+        events_per_engine_per_year:
+          type: number
+          description: Baseline unscheduled events per engine per year (user-editable)
+          default: 2
+        source:
+          type: string
+          description: Citation or label for the reduction range
+          example: "ASSUMPTION — cite: Saxena et al. 2008 PHM challenge; adjust to fleet data"
+        assumptions:
+          type: array
+          items:
+            type: string
+          example:
+            - "Reduction range 20–30% is an industry estimate, not a measured result from this system"
+            - "Cost per event is illustrative; replace with fleet operator's actual data"
+            - "Alert lead time derived from model output for demo engines; production value depends on real sensor data"

@@ -1,0 +1,132 @@
+version: "3.9"
+
+services:
+
+  # ─── EDGE SERVICE ──────────────────────────────────────────────────────────
+  # Constrained to simulate an edge-class device.
+  # These limits are part of the Edge AI claim — do not remove.
+  edge:
+    build:
+      context: ../edge
+      dockerfile: Dockerfile
+    container_name: aerotwin_edge
+    ports:
+      - "8001:8001"
+    volumes:
+      - edge_data:/data            # SQLite outbox lives here
+      - ../ml/models:/models:ro    # ONNX model + conformal offsets + Mahal baselines
+      - ../ml/replay_bundles:/replay_bundles:ro
+    environment:
+      - API_URL=http://api:8000
+      - MODEL_PATH=/models/rul_model.onnx
+      - CONFORMAL_PATH=/models/conformal_offsets.pkl
+      - MAHAL_PATH=/models/mahal_baselines.pkl
+      - OUTBOX_PATH=/data/outbox.db
+      - OFFLINE=false
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"          # 0.5 CPU — edge constraint
+          memory: 512M         # 512 MB RAM — edge constraint
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/metrics"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      - api
+    networks:
+      - aerotwin
+
+  # ─── CLOUD API ─────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    container_name: aerotwin_api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ../ml/models:/models:ro
+      - ../ml/replay_bundles:/replay_bundles:ro
+      - report_output:/reports
+    environment:
+      - DATABASE_URL=postgresql://aerotwin:aerotwin@postgres:5432/aerotwin
+      - REPLAY_BUNDLE_DIR=/replay_bundles
+      - REPORT_DIR=/reports
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - aerotwin
+
+  # ─── POSTGRESQL ────────────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: aerotwin_postgres
+    environment:
+      - POSTGRES_USER=aerotwin
+      - POSTGRES_PASSWORD=aerotwin
+      - POSTGRES_DB=aerotwin
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aerotwin"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    networks:
+      - aerotwin
+
+  # ─── WEB PORTAL ────────────────────────────────────────────────────────────
+  web:
+    build:
+      context: ../web
+      dockerfile: Dockerfile
+    container_name: aerotwin_web
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+      - VITE_EDGE_URL=http://localhost:8001
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+    networks:
+      - aerotwin
+
+  # ─── SIMULATOR ─────────────────────────────────────────────────────────────
+  # Replays C-MAPSS bundles cycle-by-cycle to the edge service.
+  # Included in docker-compose for development; in production it's part of /api.
+  simulator:
+    build:
+      context: ../api
+      dockerfile: Dockerfile
+    container_name: aerotwin_simulator
+    command: python -m app.simulator
+    volumes:
+      - ../ml/replay_bundles:/replay_bundles:ro
+    environment:
+      - EDGE_URL=http://edge:8001
+      - REPLAY_BUNDLE_DIR=/replay_bundles
+    depends_on:
+      edge:
+        condition: service_healthy
+    networks:
+      - aerotwin
+
+volumes:
+  postgres_data:
+  edge_data:
+  report_output:
+
+networks:
+  aerotwin:
+    driver: bridge
