@@ -7,41 +7,41 @@ interface AlertFeedProps {
 }
 
 /**
- * AlertFeed — Scrolling feed of real-time turbofan alerts.
- * Uses strict health palette: Healthy #22c55e, Warning #f59e0b, Critical #ef4444.
+ * AlertFeed — Scrolling feed of real-time turbofan alerts in white decent theme.
+ * Uses strict health palette: Healthy #10b981, Warning #f59e0b, Critical #ef4444.
  */
 export const AlertFeed: React.FC<AlertFeedProps> = ({ alerts, onSelectAlert }) => {
   const getBadgeStyle = (severity: string) => {
     switch (severity) {
       case 'CRITICAL':
-        return { bg: 'rgba(239, 68, 68, 0.15)', text: '#ef4444', border: 'rgba(239, 68, 68, 0.4)' };
+        return { bg: '#fef2f2', text: '#b91c1c', border: '#fecaca', bar: '#ef4444' };
       case 'WARNING':
-        return { bg: 'rgba(245, 158, 11, 0.15)', text: '#f59e0b', border: 'rgba(245, 158, 11, 0.4)' };
+        return { bg: '#fffbeb', text: '#b45309', border: '#fde68a', bar: '#f59e0b' };
       default:
-        return { bg: 'rgba(34, 197, 94, 0.15)', text: '#22c55e', border: 'rgba(34, 197, 94, 0.4)' };
+        return { bg: '#f0fdf4', text: '#047857', border: '#bbf7d0', bar: '#10b981' };
     }
   };
 
   return (
     <div
       style={{
-        background: 'rgba(17, 24, 39, 0.75)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '12px',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '14px',
         padding: '1.25rem',
         display: 'flex',
         flexDirection: 'column',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+        boxShadow: '0 2px 8px -2px rgba(15, 23, 42, 0.05)',
         height: '100%',
         minHeight: '260px',
       }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-        <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-          Alerts & Event Feed
+        <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#0f172a', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          Alerts & Event Summary
         </h3>
-        <span style={{ fontSize: '0.75rem', color: '#64748b' }}>
-          {alerts.length} event{alerts.length === 1 ? '' : 's'} logged
+        <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#64748b', backgroundColor: '#f1f5f9', padding: '0.15rem 0.5rem', borderRadius: '9999px' }}>
+          {alerts.length} logged
         </span>
       </div>
 
@@ -57,7 +57,8 @@ export const AlertFeed: React.FC<AlertFeedProps> = ({ alerts, onSelectAlert }) =
       >
         {alerts.length === 0 ? (
           <div style={{ padding: '2rem 1rem', textAlign: 'center', color: '#64748b', fontSize: '0.85rem' }}>
-            No warning or critical alerts fired yet. All subsystems operating within nominal limits.
+            <span style={{ fontSize: '1.5rem', display: 'block', marginBottom: '0.35rem' }}>✅</span>
+            All engine stages nominal. No critical alerts triggered.
           </div>
         ) : (
           alerts.map((alert) => {
@@ -67,43 +68,29 @@ export const AlertFeed: React.FC<AlertFeedProps> = ({ alerts, onSelectAlert }) =
                 key={alert.id}
                 onClick={() => onSelectAlert && onSelectAlert(alert)}
                 style={{
-                  padding: '0.75rem',
+                  padding: '0.75rem 0.85rem',
                   borderRadius: '8px',
-                  background: 'rgba(15, 23, 42, 0.7)',
+                  backgroundColor: badge.bg,
                   border: `1px solid ${badge.border}`,
+                  borderLeft: `4px solid ${badge.bar}`,
+                  cursor: onSelectAlert ? 'pointer' : 'default',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '0.25rem',
-                  cursor: onSelectAlert ? 'pointer' : 'default',
-                  transition: 'background 0.2s',
+                  transition: 'transform 0.1s ease',
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span
-                    style={{
-                      padding: '0.15rem 0.45rem',
-                      borderRadius: '4px',
-                      fontSize: '0.68rem',
-                      fontWeight: 700,
-                      backgroundColor: badge.bg,
-                      color: badge.text,
-                      border: `1px solid ${badge.border}`,
-                      textTransform: 'uppercase',
-                    }}
-                  >
-                    {alert.severity}
+                  <span style={{ fontSize: '0.72rem', fontWeight: 800, color: badge.text, textTransform: 'uppercase' }}>
+                    {alert.severity} · Cycle {alert.cycle}
                   </span>
-                  <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontFamily: 'monospace' }}>
-                    Cycle {alert.cycle}
+                  <span style={{ fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace' }}>
+                    {new Date(alert.timestamp).toLocaleTimeString()}
                   </span>
                 </div>
-                <div style={{ fontSize: '0.8rem', color: '#e2e8f0', marginTop: '0.2rem' }}>
+                <p style={{ margin: 0, fontSize: '0.8rem', color: '#1e293b', fontWeight: 500, lineHeight: 1.35 }}>
                   {alert.message}
-                </div>
-                <div style={{ fontSize: '0.68rem', color: '#64748b', display: 'flex', justifyContent: 'space-between' }}>
-                  <span>Engine: {alert.engine_id}</span>
-                  <span>{alert.timestamp}</span>
-                </div>
+                </p>
               </div>
             );
           })

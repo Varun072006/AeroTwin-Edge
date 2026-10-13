@@ -11,6 +11,7 @@ interface ShapChartProps {
 /**
  * ShapChart — Feature & Component SHAP contribution bar chart.
  * Uses honest negative values (reducing RUL) vs positive values (preserving RUL).
+ * Styled in clean white decent theme with executive high contrast.
  */
 export const ShapChart: React.FC<ShapChartProps> = ({
   shapData,
@@ -23,20 +24,20 @@ export const ShapChart: React.FC<ShapChartProps> = ({
   return (
     <div
       style={{
-        background: 'rgba(17, 24, 39, 0.75)',
-        border: '1px solid rgba(255, 255, 255, 0.08)',
-        borderRadius: '12px',
+        background: '#ffffff',
+        border: '1px solid #e2e8f0',
+        borderRadius: '14px',
         padding: '1.25rem',
-        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
+        boxShadow: '0 2px 8px -2px rgba(15, 23, 42, 0.05)',
       }}
     >
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
         <div>
-          <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 700, color: '#f1f5f9', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+          <h3 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 800, color: '#0f172a', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
             {title}
           </h3>
           <p style={{ margin: '0.2rem 0 0 0', fontSize: '0.75rem', color: '#64748b' }}>
-            Negative impact reduces RUL; positive impact preserves baseline life.
+            Negative bars pull down RUL; positive bars preserve nominal engine life.
           </p>
         </div>
         <DataSourceBadge source="live model" detail="Extracted via TreeSHAP pred_contribs on XGBoost" />
@@ -47,14 +48,14 @@ export const ShapChart: React.FC<ShapChartProps> = ({
           const isNegative = value < 0;
           const absVal = Math.abs(value);
           const barWidthPercent = (absVal / maxAbs) * 50; // Max 50% on either side of zero line
-          const color = isNegative ? '#ef4444' : '#22c55e';
+          const color = isNegative ? '#ef4444' : '#10b981';
 
           return (
             <div key={label} style={{ display: 'flex', alignItems: 'center', fontSize: '0.8rem' }}>
               <span
                 style={{
-                  width: isComponentLevel ? '90px' : '65px',
-                  color: '#cbd5e1',
+                  width: isComponentLevel ? '95px' : '70px',
+                  color: '#1e293b',
                   fontWeight: 600,
                   fontFamily: isComponentLevel ? 'Inter, sans-serif' : 'monospace',
                 }}
@@ -68,22 +69,21 @@ export const ShapChart: React.FC<ShapChartProps> = ({
                   flex: 1,
                   height: '18px',
                   position: 'relative',
-                  background: 'rgba(255,255,255,0.03)',
+                  backgroundColor: '#f1f5f9',
                   borderRadius: '4px',
-                  display: 'flex',
-                  alignItems: 'center',
+                  overflow: 'hidden',
                 }}
               >
-                {/* Center Axis (0) */}
+                {/* Center Zero Line */}
                 <div
                   style={{
                     position: 'absolute',
-                    left: '50%',
                     top: 0,
                     bottom: 0,
+                    left: '50%',
                     width: '1px',
-                    background: 'rgba(255,255,255,0.2)',
-                    zIndex: 1,
+                    backgroundColor: '#cbd5e1',
+                    zIndex: 2,
                   }}
                 />
 
@@ -92,13 +92,13 @@ export const ShapChart: React.FC<ShapChartProps> = ({
                   <div
                     style={{
                       position: 'absolute',
+                      top: '2px',
+                      bottom: '2px',
                       right: '50%',
                       width: `${barWidthPercent}%`,
-                      height: '12px',
-                      background: color,
+                      backgroundColor: color,
                       borderRadius: '3px 0 0 3px',
-                      opacity: 0.85,
-                      boxShadow: `0 0 8px ${color}66`,
+                      transition: 'width 0.4s ease',
                     }}
                   />
                 )}
@@ -108,27 +108,27 @@ export const ShapChart: React.FC<ShapChartProps> = ({
                   <div
                     style={{
                       position: 'absolute',
+                      top: '2px',
+                      bottom: '2px',
                       left: '50%',
                       width: `${barWidthPercent}%`,
-                      height: '12px',
-                      background: color,
+                      backgroundColor: color,
                       borderRadius: '0 3px 3px 0',
-                      opacity: 0.85,
-                      boxShadow: `0 0 8px ${color}66`,
+                      transition: 'width 0.4s ease',
                     }}
                   />
                 )}
               </div>
 
-              {/* Value Text */}
+              {/* Numeric Value Label */}
               <span
                 style={{
-                  width: '55px',
+                  width: '60px',
                   textAlign: 'right',
                   color: color,
                   fontWeight: 700,
                   fontFamily: 'monospace',
-                  marginLeft: '0.75rem',
+                  fontSize: '0.78rem',
                 }}
               >
                 {value >= 0 ? `+${value.toFixed(2)}` : value.toFixed(2)}

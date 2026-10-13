@@ -17,16 +17,34 @@ export const App: React.FC = () => {
 
   return (
     <BrowserRouter>
-      <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', backgroundColor: '#070b14', color: '#f8fafc' }}>
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          backgroundColor: '#f8fafc',
+          color: '#0f172a',
+        }}
+      >
         {/* Navigation Bar */}
         <Navbar
           onStartTour={() => setIsTourOpen(true)}
           isOffline={isOffline}
           isFallback={true}
+          alertCount={2}
         />
 
         {/* Main Content Area */}
-        <main style={{ flex: 1, padding: '2rem 1.5rem', width: '100%', boxSizing: 'border-box' }}>
+        <main
+          style={{
+            flex: 1,
+            padding: '1.75rem 1.5rem',
+            width: '100%',
+            maxWidth: '1440px',
+            margin: '0 auto',
+            boxSizing: 'border-box',
+          }}
+        >
           <Routes>
             <Route path="/" element={<EvaluatorLanding onStartTour={() => setIsTourOpen(true)} />} />
             <Route path="/twin" element={<LiveDigitalTwin />} />
@@ -46,22 +64,23 @@ export const App: React.FC = () => {
         {/* Global Footer */}
         <footer
           style={{
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            padding: '1.5rem',
+            borderTop: '1px solid #e2e8f0',
+            padding: '1.25rem 1.5rem',
             textAlign: 'center',
             fontSize: '0.8rem',
             color: '#64748b',
             display: 'flex',
             flexDirection: 'column',
-            gap: '0.4rem',
-            backgroundColor: '#05080f',
+            gap: '0.35rem',
+            backgroundColor: '#ffffff',
           }}
         >
           <div>
-            <strong>AeroTwin Edge</strong> · Built for <strong>Tata Innovent-27</strong> (Edge AI Category)
+            <strong style={{ color: '#0f172a' }}>AeroTwin Edge</strong> · Built for{' '}
+            <strong style={{ color: '#0284c7' }}>Tata Innovent-27</strong> (Edge AI Category)
           </div>
-          <div>
-            Dataset: NASA C-MAPSS Simulated Turbofan (Prognostics Data Repository) · CPU-Only ONNX Runtime Simulation
+          <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>
+            Dataset: NASA C-MAPSS Simulated Turbofan Benchmark · CPU-Only ONNX Runtime Edge Execution · Calibrated Conformal Uncertainty
           </div>
         </footer>
       </div>

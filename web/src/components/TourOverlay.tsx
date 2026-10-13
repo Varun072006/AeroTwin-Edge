@@ -94,8 +94,8 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ isOpen, onClose }) => 
         left: 0,
         right: 0,
         bottom: 0,
-        backgroundColor: 'rgba(5, 8, 15, 0.75)',
-        backdropFilter: 'blur(4px)',
+        backgroundColor: 'rgba(15, 23, 42, 0.45)',
+        backdropFilter: 'blur(6px)',
         zIndex: 9999,
         display: 'flex',
         alignItems: 'center',
@@ -107,11 +107,11 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ isOpen, onClose }) => 
         style={{
           width: '100%',
           maxWidth: '560px',
-          background: '#0d1424',
-          border: '1px solid rgba(74, 158, 255, 0.4)',
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
           borderRadius: '16px',
           padding: '2rem',
-          boxShadow: '0 20px 60px rgba(0, 0, 0, 0.8), 0 0 24px rgba(74, 158, 255, 0.2)',
+          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(0, 0, 0, 0.05)',
           display: 'flex',
           flexDirection: 'column',
           gap: '1.25rem',
@@ -121,27 +121,36 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ isOpen, onClose }) => 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
             <span
               style={{
-                background: 'rgba(74, 158, 255, 0.2)',
-                color: '#60a5fa',
-                padding: '0.2rem 0.6rem',
+                background: '#eff6ff',
+                color: '#1d4ed8',
+                border: '1px solid #bfdbfe',
+                padding: '0.25rem 0.65rem',
                 borderRadius: '6px',
                 fontSize: '0.75rem',
                 fontWeight: 700,
+                letterSpacing: '0.04em',
               }}
             >
               TOUR · STEP {currentStepIndex + 1} OF {TOUR_STEPS.length}
             </span>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>~90s Evaluator Guide</span>
+            <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>~90s Evaluator Guide</span>
           </div>
           <button
             onClick={onClose}
+            aria-label="Close Tour"
             style={{
-              background: 'transparent',
+              background: '#f1f5f9',
               border: 'none',
-              color: '#94a3b8',
+              borderRadius: '6px',
+              width: '28px',
+              height: '28px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
               cursor: 'pointer',
-              fontSize: '1.2rem',
-              lineHeight: 1,
+              fontSize: '1rem',
+              fontWeight: 700,
             }}
           >
             ✕
@@ -149,40 +158,41 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ isOpen, onClose }) => 
         </div>
 
         <div>
-          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.3rem', fontWeight: 700, color: '#f8fafc' }}>
+          <h2 style={{ margin: '0 0 0.5rem 0', fontSize: '1.25rem', fontWeight: 800, color: '#0f172a' }}>
             {step.title}
           </h2>
-          <p style={{ margin: 0, fontSize: '0.9rem', color: '#cbd5e1', lineHeight: 1.5 }}>
+          <p style={{ margin: 0, fontSize: '0.92rem', color: '#475569', lineHeight: 1.55 }}>
             {step.description}
           </p>
         </div>
 
         <div
           style={{
-            background: 'rgba(15, 23, 42, 0.8)',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            borderRadius: '8px',
-            padding: '0.8rem 1rem',
-            fontSize: '0.82rem',
-            color: '#38bdf8',
+            background: '#f0fdf4',
+            border: '1px solid #bbf7d0',
+            borderRadius: '10px',
+            padding: '0.85rem 1rem',
+            fontSize: '0.83rem',
+            color: '#15803d',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
+            gap: '0.6rem',
+            fontWeight: 500,
           }}
         >
-          <span>🎯</span>
+          <span style={{ fontSize: '1.1rem' }}>🎯</span>
           <span>{step.targetTip}</span>
         </div>
 
         {/* Progress Bar */}
-        <div style={{ display: 'flex', gap: '4px', height: '4px' }}>
+        <div style={{ display: 'flex', gap: '4px', height: '5px' }}>
           {TOUR_STEPS.map((_, idx) => (
             <div
               key={idx}
               style={{
                 flex: 1,
-                borderRadius: '2px',
-                background: idx <= currentStepIndex ? '#3b82f6' : 'rgba(255,255,255,0.1)',
+                borderRadius: '3px',
+                background: idx <= currentStepIndex ? '#2563eb' : '#e2e8f0',
                 transition: 'background 0.3s ease',
               }}
             />
@@ -197,9 +207,9 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ isOpen, onClose }) => 
             style={{
               padding: '0.55rem 1.1rem',
               borderRadius: '8px',
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.15)',
-              color: currentStepIndex === 0 ? '#475569' : '#e2e8f0',
+              background: currentStepIndex === 0 ? '#f8fafc' : '#ffffff',
+              border: '1px solid #cbd5e1',
+              color: currentStepIndex === 0 ? '#94a3b8' : '#334155',
               cursor: currentStepIndex === 0 ? 'not-allowed' : 'pointer',
               fontSize: '0.85rem',
               fontWeight: 600,
@@ -216,9 +226,10 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ isOpen, onClose }) => 
                 borderRadius: '8px',
                 background: 'transparent',
                 border: 'none',
-                color: '#94a3b8',
+                color: '#64748b',
                 cursor: 'pointer',
                 fontSize: '0.85rem',
+                fontWeight: 600,
               }}
             >
               Exit Tour
@@ -234,7 +245,7 @@ export const TourOverlay: React.FC<TourOverlayProps> = ({ isOpen, onClose }) => 
                 cursor: 'pointer',
                 fontSize: '0.85rem',
                 fontWeight: 700,
-                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.4)',
+                boxShadow: '0 4px 12px rgba(37, 99, 235, 0.25)',
               }}
             >
               {isLast ? 'Complete Tour 🎉' : 'Next Step →'}

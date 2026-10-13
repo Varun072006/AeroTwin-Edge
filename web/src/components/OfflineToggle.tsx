@@ -33,11 +33,11 @@ export const OfflineToggle: React.FC<OfflineToggleProps> = ({
         display: 'flex',
         alignItems: 'center',
         gap: '1rem',
-        background: isOffline ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.08)',
-        border: `1px solid ${isOffline ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.25)'}`,
+        background: isOffline ? '#fef2f2' : '#f0fdf4',
+        border: `1px solid ${isOffline ? '#fecaca' : '#bbf7d0'}`,
         borderRadius: '10px',
         padding: '0.6rem 1rem',
-        transition: 'all 0.3s ease',
+        transition: 'all 0.2s ease',
       }}
     >
       <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -47,15 +47,15 @@ export const OfflineToggle: React.FC<OfflineToggleProps> = ({
               width: '8px',
               height: '8px',
               borderRadius: '50%',
-              backgroundColor: isOffline ? '#ef4444' : '#22c55e',
-              boxShadow: `0 0 8px ${isOffline ? '#ef4444' : '#22c55e'}`,
+              backgroundColor: isOffline ? '#ef4444' : '#10b981',
+              boxShadow: `0 0 6px ${isOffline ? '#ef4444' : '#10b981'}`,
             }}
           />
-          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: '#f8fafc' }}>
+          <span style={{ fontSize: '0.85rem', fontWeight: 700, color: isOffline ? '#991b1b' : '#065f46' }}>
             {isOffline ? 'Edge Offline (Isolated)' : 'Cloud Link Active (Online)'}
           </span>
         </div>
-        <span style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: '2px' }}>
+        <span style={{ fontSize: '0.72rem', color: isOffline ? '#b91c1c' : '#047857', marginTop: '2px' }}>
           {isOffline
             ? `Inference running locally · Outbox buffering (${queueDepth} queued)`
             : 'Live stream synced with Cloud API'}
@@ -69,13 +69,13 @@ export const OfflineToggle: React.FC<OfflineToggleProps> = ({
           cursor: loading ? 'wait' : 'pointer',
           padding: '0.4rem 0.9rem',
           borderRadius: '6px',
-          fontWeight: 600,
+          fontWeight: 700,
           fontSize: '0.75rem',
-          backgroundColor: isOffline ? '#ef4444' : '#1e293b',
-          color: '#ffffff',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: isOffline ? '0 0 12px rgba(239, 68, 68, 0.4)' : 'none',
-          transition: 'all 0.2s ease',
+          backgroundColor: isOffline ? '#ef4444' : '#ffffff',
+          color: isOffline ? '#ffffff' : '#0f172a',
+          border: isOffline ? '1px solid #dc2626' : '1px solid #cbd5e1',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
+          transition: 'all 0.15s ease',
         }}
       >
         {loading ? 'Switching...' : isOffline ? 'Reconnect Cloud' : 'Simulate Sever Link'}

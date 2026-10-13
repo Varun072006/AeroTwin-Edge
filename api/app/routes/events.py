@@ -45,7 +45,11 @@ async def receive_event(body: dict, request: Request, db: AsyncSession = Depends
         )
         db.add(alert)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except Exception:
+        await db.rollback()
+        return {"status": "duplicate", "event_id": event_id}
 
     # Broadcast to SSE clients
     sse_queue = request.app.state.sse_queue

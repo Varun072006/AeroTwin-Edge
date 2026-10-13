@@ -142,14 +142,15 @@ async def predict(body: TelemetryInput) -> PredictionResult:
     
     # ONNX inference
     input_name = _ort_session.get_inputs()[0].name
-    rul_raw = float(_ort_session.run(None, {input_name: features.reshape(1, -1)})[0][0])
-    rul = float(np.clip(rul_raw, 0, 362))
+    out = _ort_session.run(None, {input_name: features.reshape(1, -1)})[0]
+    rul_raw = float(np.asarray(out).ravel()[0])
+    rul = float(max(0.0, min(362.0, rul_raw)))
     
     # Conformal intervals
-    q_lo = _conformal_offsets["q_lo"]
-    q_hi = _conformal_offsets["q_hi"]
-    rul_lo = float(np.clip(rul + q_lo, 0, 362))
-    rul_hi = float(np.clip(rul + q_hi, 0, 362))
+    q_lo = float(_conformal_offsets["q_lo"])
+    q_hi = float(_conformal_offsets["q_hi"])
+    rul_lo = float(max(0.0, min(362.0, rul + q_lo)))
+    rul_hi = float(max(0.0, min(362.0, rul + q_hi)))
     
     # Health class (based on lower bound — conservative)
     if rul_lo <= HEALTH_CRITICAL_MAX:
@@ -290,7 +291,13 @@ def _build_features(engine_id: str, sensor_values: np.ndarray) -> np.ndarray:
 
 def _get_anomaly_score(engine_id: str, sensor_values: np.ndarray) -> tuple[float, bool]:
     """Get Mahalanobis anomaly score for this engine cycle."""
-    from ml.pipeline.anomaly import AnomalyDetector  # type: ignore
+    try:
+        from ml.pipeline.anomaly import AnomalyDetector  # type: ignore
+    except ImportError:
+        try:
+            from .anomaly import AnomalyDetector
+        except ImportError:
+            from anomaly import AnomalyDetector
     
     if engine_id not in _anomaly_detectors and _mahal_baselines:
         baseline = _mahal_baselines.get(engine_id)
